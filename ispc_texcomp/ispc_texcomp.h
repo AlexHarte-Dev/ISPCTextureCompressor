@@ -22,15 +22,15 @@
 
 #include <stdint.h>
 
-struct rgba_surface
+typedef struct rgba_surface
 {
     uint8_t* ptr;
     int32_t width;
     int32_t height;
     int32_t stride; // in bytes
-};
+} rgba_surface;
 
-struct bc7_enc_settings
+typedef struct bc7_enc_settings
 {
     bool mode_selection[4];
     int refineIterations[8];
@@ -44,23 +44,23 @@ struct bc7_enc_settings
     int refineIterations_channel;
 
     int channels;
-};
+} bc7_enc_settings;
 
-struct bc6h_enc_settings
+typedef struct bc6h_enc_settings
 {
     bool slow_mode;
     bool fast_mode;
     int refineIterations_1p;
     int refineIterations_2p;
     int fastSkipTreshold;
-};
+} bc6h_enc_settings;
 
-struct etc_enc_settings
+typedef struct etc_enc_settings
 {
     int fastSkipTreshold;
-};
+} etc_enc_settings;
 
-struct astc_enc_settings
+typedef struct astc_enc_settings
 {
     int block_width;
     int block_height;
@@ -68,58 +68,67 @@ struct astc_enc_settings
 
     int fastSkipTreshold;
     int refineIterations;
-};
+} astc_enc_settings;
 
-// profiles for RGB data (alpha channel will be ignored)
-extern "C" void GetProfile_ultrafast(bc7_enc_settings* settings);
-extern "C" void GetProfile_veryfast(bc7_enc_settings* settings);
-extern "C" void GetProfile_fast(bc7_enc_settings* settings);
-extern "C" void GetProfile_basic(bc7_enc_settings* settings);
-extern "C" void GetProfile_slow(bc7_enc_settings* settings);
+#ifdef __cplusplus
+extern "C"
+{
+#endif
 
-// profiles for RGBA inputs
-extern "C" void GetProfile_alpha_ultrafast(bc7_enc_settings* settings);
-extern "C" void GetProfile_alpha_veryfast(bc7_enc_settings* settings);
-extern "C" void GetProfile_alpha_fast(bc7_enc_settings* settings);
-extern "C" void GetProfile_alpha_basic(bc7_enc_settings* settings);
-extern "C" void GetProfile_alpha_slow(bc7_enc_settings* settings);
+    // profiles for RGB data (alpha channel will be ignored)
+    void GetProfile_ultrafast(bc7_enc_settings* settings);
+    void GetProfile_veryfast(bc7_enc_settings* settings);
+    void GetProfile_fast(bc7_enc_settings* settings);
+    void GetProfile_basic(bc7_enc_settings* settings);
+    void GetProfile_slow(bc7_enc_settings* settings);
+    
+    // profiles for RGBA inputs
+    void GetProfile_alpha_ultrafast(bc7_enc_settings* settings);
+    void GetProfile_alpha_veryfast(bc7_enc_settings* settings);
+    void GetProfile_alpha_fast(bc7_enc_settings* settings);
+    void GetProfile_alpha_basic(bc7_enc_settings* settings);
+    void GetProfile_alpha_slow(bc7_enc_settings* settings);
+    
+    // profiles for BC6H (RGB HDR)
+    void GetProfile_bc6h_veryfast(bc6h_enc_settings* settings);
+    void GetProfile_bc6h_fast(bc6h_enc_settings* settings);
+    void GetProfile_bc6h_basic(bc6h_enc_settings* settings);
+    void GetProfile_bc6h_slow(bc6h_enc_settings* settings);
+    void GetProfile_bc6h_veryslow(bc6h_enc_settings* settings);
+    
+    // profiles for ETC
+    void GetProfile_etc_slow(etc_enc_settings* settings);
+    
+    // profiles for ASTC
+    void GetProfile_astc_fast(astc_enc_settings* settings, int block_width, int block_height);
+    void GetProfile_astc_alpha_fast(astc_enc_settings* settings, int block_width, int block_height);
+    void GetProfile_astc_alpha_slow(astc_enc_settings* settings, int block_width, int block_height);
+    
+    // helper function to replicate border pixels for the desired block sizes (bpp = 32 or 64)
+    void ReplicateBorders(rgba_surface* dst_slice, const rgba_surface* src_tex, int x, int y, int bpp);
+    
+    /*
+    Notes:
+        - input width and height need to be a multiple of block size
+        - LDR input is 32 bit/pixel (sRGB), HDR is 64 bit/pixel (half float)
+            - for BC4 input is 8bit/pixel (R8), for BC5 input is 16bit/pixel (RG8)
+        - dst buffer must be allocated with enough space for the compressed texture:
+            - 8 bytes/block for BC1/BC4/ETC1,
+            - 16 bytes/block for BC3/BC5/BC6H/BC7/ASTC
+        - the blocks are stored in raster scan order (natural CPU texture layout)
+        - use the GetProfile_* functions to select various speed/quality tradeoffs
+        - the RGB profiles are slightly faster as they ignore the alpha channel
+    */
+    
+    void CompressBlocksBC1(const rgba_surface* src, uint8_t* dst);
+    void CompressBlocksBC3(const rgba_surface* src, uint8_t* dst);
+    void CompressBlocksBC4(const rgba_surface* src, uint8_t* dst);
+    void CompressBlocksBC5(const rgba_surface* src, uint8_t* dst);
+    void CompressBlocksBC6H(const rgba_surface* src, uint8_t* dst, bc6h_enc_settings* settings);
+    void CompressBlocksBC7(const rgba_surface* src, uint8_t* dst, bc7_enc_settings* settings);
+    void CompressBlocksETC1(const rgba_surface* src, uint8_t* dst, etc_enc_settings* settings);
+    void CompressBlocksASTC(const rgba_surface* src, uint8_t* dst, astc_enc_settings* settings);
 
-// profiles for BC6H (RGB HDR)
-extern "C" void GetProfile_bc6h_veryfast(bc6h_enc_settings* settings);
-extern "C" void GetProfile_bc6h_fast(bc6h_enc_settings* settings);
-extern "C" void GetProfile_bc6h_basic(bc6h_enc_settings* settings);
-extern "C" void GetProfile_bc6h_slow(bc6h_enc_settings* settings);
-extern "C" void GetProfile_bc6h_veryslow(bc6h_enc_settings* settings);
-
-// profiles for ETC
-extern "C" void GetProfile_etc_slow(etc_enc_settings* settings);
-
-// profiles for ASTC
-extern "C" void GetProfile_astc_fast(astc_enc_settings* settings, int block_width, int block_height);
-extern "C" void GetProfile_astc_alpha_fast(astc_enc_settings* settings, int block_width, int block_height);
-extern "C" void GetProfile_astc_alpha_slow(astc_enc_settings* settings, int block_width, int block_height);
-
-// helper function to replicate border pixels for the desired block sizes (bpp = 32 or 64)
-extern "C" void ReplicateBorders(rgba_surface* dst_slice, const rgba_surface* src_tex, int x, int y, int bpp);
-
-/*
-Notes:
-    - input width and height need to be a multiple of block size
-    - LDR input is 32 bit/pixel (sRGB), HDR is 64 bit/pixel (half float)
-        - for BC4 input is 8bit/pixel (R8), for BC5 input is 16bit/pixel (RG8)
-    - dst buffer must be allocated with enough space for the compressed texture:
-        - 8 bytes/block for BC1/BC4/ETC1,
-        - 16 bytes/block for BC3/BC5/BC6H/BC7/ASTC
-    - the blocks are stored in raster scan order (natural CPU texture layout)
-    - use the GetProfile_* functions to select various speed/quality tradeoffs
-    - the RGB profiles are slightly faster as they ignore the alpha channel
-*/
-
-extern "C" void CompressBlocksBC1(const rgba_surface* src, uint8_t* dst);
-extern "C" void CompressBlocksBC3(const rgba_surface* src, uint8_t* dst);
-extern "C" void CompressBlocksBC4(const rgba_surface* src, uint8_t* dst);
-extern "C" void CompressBlocksBC5(const rgba_surface* src, uint8_t* dst);
-extern "C" void CompressBlocksBC6H(const rgba_surface* src, uint8_t* dst, bc6h_enc_settings* settings);
-extern "C" void CompressBlocksBC7(const rgba_surface* src, uint8_t* dst, bc7_enc_settings* settings);
-extern "C" void CompressBlocksETC1(const rgba_surface* src, uint8_t* dst, etc_enc_settings* settings);
-extern "C" void CompressBlocksASTC(const rgba_surface* src, uint8_t* dst, astc_enc_settings* settings);
+#ifdef __cplusplus
+} // extern "C"
+#endif
